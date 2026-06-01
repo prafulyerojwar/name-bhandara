@@ -46,6 +46,7 @@ export default function RegisterPage() {
   });
   const [showPass, setShowPass] = useState(false);
   const [loading, setLoading] = useState(false);
+  const [emailExists, setEmailExists] = useState(false);
 
   function update(k: keyof typeof form, v: string) {
     setForm(f => ({ ...f, [k]: v }));
@@ -64,7 +65,13 @@ export default function RegisterPage() {
       toast.success('Account created! Welcome 🙏');
       router.push('/dashboard');
     } catch (err) {
-      toast.error(friendlyAuthError(err));
+      const code = (err as { code?: string })?.code ?? '';
+      if (code === 'auth/email-already-in-use') {
+        // Show inline banner so user knows exactly what to do
+        setEmailExists(true);
+      } else {
+        toast.error(friendlyAuthError(err));
+      }
     } finally {
       setLoading(false);
     }
@@ -287,6 +294,31 @@ export default function RegisterPage() {
                         </div>
                       )}
                     </div>
+
+                    {/* Email-already-exists banner */}
+                    {emailExists && (
+                      <div className="rounded-2xl bg-amber-50 border border-amber-300 p-4 text-sm">
+                        <p className="font-semibold text-amber-800 mb-1">⚠️ This email is already registered</p>
+                        <p className="text-amber-700 mb-3">An account with <span className="font-medium">{form.email}</span> already exists.</p>
+                        <div className="flex gap-2">
+                          <Link
+                            href={`/auth/login`}
+                            className="flex-1 text-center py-2 rounded-xl bg-orange-500 text-white text-xs font-bold hover:bg-orange-600 transition-colors"
+                          >
+                            Login instead
+                          </Link>
+                          <Link
+                            href={`/auth/login`}
+                            onClick={() => {
+                              sessionStorage.setItem('resetEmail', form.email);
+                            }}
+                            className="flex-1 text-center py-2 rounded-xl border border-amber-400 text-amber-700 text-xs font-bold hover:bg-amber-100 transition-colors"
+                          >
+                            Forgot password?
+                          </Link>
+                        </div>
+                      </div>
+                    )}
 
                     <div className="flex gap-3 pt-2">
                       <button

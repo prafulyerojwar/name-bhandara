@@ -3,6 +3,7 @@ import {
   signInWithEmailAndPassword,
   signOut,
   updateProfile,
+  sendPasswordResetEmail,
   GoogleAuthProvider,
   signInWithPopup,
 } from 'firebase/auth';
@@ -28,18 +29,35 @@ export async function registerUser(
     createdAt: Date.now(),
     ...extra,
   };
-
-  // Write the profile first, then return — the auth listener will read it
   await createUserProfile(profile);
   return profile;
 }
 
-export async function loginUser(email: string, password: string) {
-  return signInWithEmailAndPassword(auth, email, password);
+export async function loginUser(email: string, password: string): Promise<UserProfile> {
+  const cred = await signInWithEmailAndPassword(auth, email, password);
+
+  // If the Firestore profile is missing (orphaned from a previous failed
+  // registration) build a minimal one so the user isn't stuck.
+  let profile = await getUserProfile(cred.user.uid);
+  if (!profile) {
+    profile = {
+      uid: cred.user.uid,
+      email: cred.user.email!,
+      displayName: cred.user.displayName ?? email.split('@')[0],
+      role: 'general',
+      createdAt: Date.now(),
+    };
+    await createUserProfile(profile);
+  }
+  return profile;
 }
 
 export async function logoutUser() {
   return signOut(auth);
+}
+
+export async function resetPassword(email: string): Promise<void> {
+  await sendPasswordResetEmail(auth, email);
 }
 
 export async function signInWithGoogle(role: UserRole = 'general'): Promise<UserProfile> {
@@ -63,20 +81,27 @@ export async function signInWithGoogle(role: UserRole = 'general'): Promise<User
   return profile;
 }
 
-// Translate Firebase error codes into friendly messages
+// Maps Firebase error codes to plain human-readable messages
 export function friendlyAuthError(err: unknown): string {
   const code = (err as { code?: string })?.code ?? '';
   const map: Record<string, string> = {
-    'auth/email-already-in-use': 'This email is already registered. Please login.',
-    'auth/invalid-email': 'Invalid email address.',
-    'auth/weak-password': 'Password must be at least 6 characters.',
-    'auth/user-not-found': 'No account found with this email.',
-    'auth/wrong-password': 'Incorrect password.',
-    'auth/invalid-credential': 'Incorrect email or password.',
-    'auth/too-many-requests': 'Too many attempts. Please wait a few minutes and try again.',
-    'auth/network-request-failed': 'Network error. Check your connection and try again.',
-    'auth/popup-closed-by-user': 'Google sign-in was cancelled.',
+    'auth/email-already-in-use':    'This email is already registered. Please login or reset your password.',
+    'auth/invalid-email':           'Invalid email address.',
+    'auth/weak-password':           'Password must be at least 6 characters.',
+    'auth/user-not-found':          'No account found with this email.',
+    'auth/wrong-password':          'Incorrect password. Use "Forgot password?" to reset it.',
+    'auth/invalid-credential':      'Incorrect email or password. Use "Forgot password?" if needed.',
+    'auth/operation-not-allowed':   'Email/Password sign-in is not enabled. Please contact support.',
+    'auth/too-many-requests':       'Too many attempts. Please wait a few minutes and try again.',
+    'auth/network-request-failed':  'Network error. Check your connection and try again.',
+    'auth/popup-closed-by-user':    'Google sign-in was cancelled.',
     'auth/cancelled-popup-request': 'Sign-in cancelled.',
+    'auth/user-disabled':           'This account has been disabled.',
   };
-  return map[code] ?? (err instanceof Error ? err.message.replace('Firebase: ', '').replace(/\(auth\/.*\)\.?/, '').trim() : 'Something went wrong. Please try again.');
+  return (
+    map[code] ??
+    (err instanceof Error
+      ? err.message.replace('Firebase: ', '').replace(/\(auth\/.*\)\.?/, '').trim()
+      : 'Something went wrong. Please try again.')
+  );
 }

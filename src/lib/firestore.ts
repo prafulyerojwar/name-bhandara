@@ -22,13 +22,19 @@ export async function getUserProfile(uid: string): Promise<UserProfile | null> {
   return snap.exists() ? (snap.data() as UserProfile) : null;
 }
 
+// Firestore rejects fields with value `undefined` — strip them before writing
+function stripUndefined<T extends object>(obj: T): Partial<T> {
+  return Object.fromEntries(
+    Object.entries(obj).filter(([, v]) => v !== undefined)
+  ) as Partial<T>;
+}
+
 export async function createUserProfile(profile: UserProfile): Promise<void> {
-  // setDoc with merge:true acts as upsert — safe to call even if the doc exists
-  await setDoc(doc(db, 'users', profile.uid), { ...profile }, { merge: true });
+  await setDoc(doc(db, 'users', profile.uid), stripUndefined(profile), { merge: true });
 }
 
 export async function updateUserProfile(uid: string, data: Partial<UserProfile>): Promise<void> {
-  await updateDoc(doc(db, 'users', uid), data as Record<string, unknown>);
+  await updateDoc(doc(db, 'users', uid), stripUndefined(data) as Record<string, unknown>);
 }
 
 // ── Bhandaras ────────────────────────────────────────────────────────────────

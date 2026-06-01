@@ -55,7 +55,7 @@ export async function signInWithGoogle(role: UserRole = 'general'): Promise<User
       email: firebaseUser.email!,
       displayName: firebaseUser.displayName ?? firebaseUser.email!.split('@')[0],
       role,
-      photoURL: firebaseUser.photoURL ?? undefined,
+      ...(firebaseUser.photoURL ? { photoURL: firebaseUser.photoURL } : {}),
       createdAt: Date.now(),
     };
     await createUserProfile(profile);

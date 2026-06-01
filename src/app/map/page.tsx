@@ -19,54 +19,58 @@ const TYPE_FILTERS: { value: BhandaraType | 'all'; label: string; emoji: string 
   { value: 'private', label: 'Private', emoji: '🏠' },
 ];
 
-// Demo data for when Firebase isn't configured
-const DEMO: Bhandara[] = [
-  {
-    id: 'd1', title: 'Ganesh Chaturthi Mahaprasad', description: 'Grand Bhandara by Kasba Ganesh Mandal',
-    type: 'festival', donorId: 'demo', donorName: 'Kasba Ganesh Mandal', donorPhone: '+91 98765 43210',
-    address: 'Kasba Peth', city: 'Pune', state: 'Maharashtra', lat: 18.5204, lng: 73.8567,
-    foodItems: [{ name: 'Modak', quantity: '500 pcs', isVeg: true }, { name: 'Kheer', quantity: '200 bowls', isVeg: true }],
-    servings: 700, availableFrom: Date.now(), availableTill: Date.now() + 5 * 3600000,
-    status: 'available', isPublic: true, festivalName: 'Ganesh Chaturthi', createdAt: Date.now(), updatedAt: Date.now(),
-  },
-  {
-    id: 'd2', title: 'Shirdi Sai Temple Prasadam', description: 'Daily prasadam distribution',
-    type: 'temple', donorId: 'demo', donorName: 'Sai Mandir Trust', donorPhone: '+91 98001 23456',
-    address: 'Shirdi Mandir', city: 'Shirdi', state: 'Maharashtra', lat: 19.7664, lng: 74.4776,
-    foodItems: [{ name: 'Rice & Dal', quantity: '100 kg', isVeg: true }],
-    servings: 400, availableFrom: Date.now(), availableTill: Date.now() + 4 * 3600000,
-    status: 'available', isPublic: true, festivalName: 'Temple Prasadam', createdAt: Date.now(), updatedAt: Date.now(),
-  },
-  {
-    id: 'd3', title: 'Wedding Banquet Surplus', description: 'Fresh catered food from wedding reception',
-    type: 'wedding', donorId: 'demo', donorName: 'Mehta Family',
-    address: 'Hotel Grand, Bandra', city: 'Mumbai', state: 'Maharashtra', lat: 19.0596, lng: 72.8295,
-    foodItems: [{ name: 'Biryani', quantity: '30 kg', isVeg: false }, { name: 'Paneer', quantity: '15 kg', isVeg: true }],
-    servings: 150, availableFrom: Date.now(), availableTill: Date.now() + 2 * 3600000,
-    status: 'available', isPublic: false, createdAt: Date.now(), updatedAt: Date.now(),
-  },
-  {
-    id: 'd4', title: 'Ram Navami Prasad Distribution', description: 'Ram Navami celebration food',
-    type: 'festival', donorId: 'demo', donorName: 'Ram Mandir Nashik',
-    address: 'Panchavati, Nashik', city: 'Nashik', state: 'Maharashtra', lat: 19.9975, lng: 73.7898,
-    foodItems: [{ name: 'Panchamrit', quantity: '300 cups', isVeg: true }, { name: 'Halwa', quantity: '100 kg', isVeg: true }],
-    servings: 500, availableFrom: Date.now(), availableTill: Date.now() + 6 * 3600000,
-    status: 'available', isPublic: true, festivalName: 'Ram Navami', createdAt: Date.now(), updatedAt: Date.now(),
-  },
-  {
-    id: 'd5', title: 'Pandharpur Vitthal Temple Prasad', description: 'Wari festival special prasadam',
-    type: 'temple', donorId: 'demo', donorName: 'Vitthal Mandir Trust',
-    address: 'Vitthal Mandir, Pandharpur', city: 'Pandharpur', state: 'Maharashtra', lat: 17.6800, lng: 75.3300,
-    foodItems: [{ name: 'Varan Bhaat', quantity: '200 kg', isVeg: true }],
-    servings: 1000, availableFrom: Date.now(), availableTill: Date.now() + 8 * 3600000,
-    status: 'available', isPublic: true, festivalName: 'Temple Prasadam', createdAt: Date.now(), updatedAt: Date.now(),
-  },
-];
+// Built lazily on the client — never at module load / SSR time
+function buildDemo(): Bhandara[] {
+  const now = Date.now();
+  const h = (n: number) => now + n * 3_600_000;
+  return [
+    {
+      id: 'd1', title: 'Ganesh Chaturthi Mahaprasad', description: 'Grand Bhandara by Kasba Ganesh Mandal',
+      type: 'festival', donorId: 'demo', donorName: 'Kasba Ganesh Mandal', donorPhone: '+91 98765 43210',
+      address: 'Kasba Peth', city: 'Pune', state: 'Maharashtra', lat: 18.5204, lng: 73.8567,
+      foodItems: [{ name: 'Modak', quantity: '500 pcs', isVeg: true }, { name: 'Kheer', quantity: '200 bowls', isVeg: true }],
+      servings: 700, availableFrom: now, availableTill: h(5),
+      status: 'available', isPublic: true, festivalName: 'Ganesh Chaturthi', createdAt: now, updatedAt: now,
+    },
+    {
+      id: 'd2', title: 'Shirdi Sai Temple Prasadam', description: 'Daily prasadam distribution',
+      type: 'temple', donorId: 'demo', donorName: 'Sai Mandir Trust', donorPhone: '+91 98001 23456',
+      address: 'Shirdi Mandir', city: 'Shirdi', state: 'Maharashtra', lat: 19.7664, lng: 74.4776,
+      foodItems: [{ name: 'Rice & Dal', quantity: '100 kg', isVeg: true }],
+      servings: 400, availableFrom: now, availableTill: h(4),
+      status: 'available', isPublic: true, festivalName: 'Temple Prasadam', createdAt: now, updatedAt: now,
+    },
+    {
+      id: 'd3', title: 'Wedding Banquet Surplus', description: 'Fresh catered food from wedding reception',
+      type: 'wedding', donorId: 'demo', donorName: 'Mehta Family',
+      address: 'Hotel Grand, Bandra', city: 'Mumbai', state: 'Maharashtra', lat: 19.0596, lng: 72.8295,
+      foodItems: [{ name: 'Biryani', quantity: '30 kg', isVeg: false }, { name: 'Paneer', quantity: '15 kg', isVeg: true }],
+      servings: 150, availableFrom: now, availableTill: h(2),
+      status: 'available', isPublic: false, createdAt: now, updatedAt: now,
+    },
+    {
+      id: 'd4', title: 'Ram Navami Prasad Distribution', description: 'Ram Navami celebration food',
+      type: 'festival', donorId: 'demo', donorName: 'Ram Mandir Nashik',
+      address: 'Panchavati, Nashik', city: 'Nashik', state: 'Maharashtra', lat: 19.9975, lng: 73.7898,
+      foodItems: [{ name: 'Panchamrit', quantity: '300 cups', isVeg: true }, { name: 'Halwa', quantity: '100 kg', isVeg: true }],
+      servings: 500, availableFrom: now, availableTill: h(6),
+      status: 'available', isPublic: true, festivalName: 'Ram Navami', createdAt: now, updatedAt: now,
+    },
+    {
+      id: 'd5', title: 'Pandharpur Vitthal Temple Prasad', description: 'Wari festival special prasadam',
+      type: 'temple', donorId: 'demo', donorName: 'Vitthal Mandir Trust',
+      address: 'Vitthal Mandir, Pandharpur', city: 'Pandharpur', state: 'Maharashtra', lat: 17.6800, lng: 75.3300,
+      foodItems: [{ name: 'Varan Bhaat', quantity: '200 kg', isVeg: true }],
+      servings: 1000, availableFrom: now, availableTill: h(8),
+      status: 'available', isPublic: true, festivalName: 'Temple Prasadam', createdAt: now, updatedAt: now,
+    },
+  ];
+}
 
 export default function MapPage() {
   const { user } = useAuthStore();
-  const [bhandaras, setBhandaras] = useState<Bhandara[]>(DEMO);
-  const [filtered, setFiltered] = useState<Bhandara[]>(DEMO);
+  const [bhandaras, setBhandaras] = useState<Bhandara[]>([]);
+  const [filtered, setFiltered] = useState<Bhandara[]>([]);
   const [selectedId, setSelectedId] = useState<string>();
   const [selectedBhandara, setSelectedBhandara] = useState<Bhandara | null>(null);
   const [city, setCity] = useState('');
@@ -85,12 +89,12 @@ export default function MapPage() {
         all = [...pub, ...priv];
       }
       if (all.length === 0) {
-        setBhandaras(DEMO);
+        setBhandaras(buildDemo());
       } else {
         setBhandaras(all);
       }
     } catch {
-      setBhandaras(DEMO);
+      setBhandaras(buildDemo());
     }
     setLoading(false);
   }, [city, user]);

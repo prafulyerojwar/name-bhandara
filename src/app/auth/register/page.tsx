@@ -4,7 +4,7 @@ import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Mail, Lock, User, Phone, Building2, Eye, EyeOff, Loader2, ChevronRight } from 'lucide-react';
-import { registerUser } from '@/lib/auth';
+import { registerUser, friendlyAuthError } from '@/lib/auth';
 import { MAHARASHTRA_CITIES, UserRole } from '@/types';
 import toast from 'react-hot-toast';
 
@@ -53,18 +53,18 @@ export default function RegisterPage() {
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
+    if (!form.name.trim()) { toast.error('Please enter your name'); return; }
     setLoading(true);
     try {
-      await registerUser(form.email, form.password, form.name, role, {
-        phone: form.phone,
-        city: form.city,
-        organizationName: form.orgName || undefined,
+      await registerUser(form.email, form.password, form.name.trim(), role, {
+        phone: form.phone || undefined,
+        city: form.city || undefined,
+        organizationName: form.orgName.trim() || undefined,
       });
       toast.success('Account created! Welcome 🙏');
-      router.push('/');
-    } catch (err: unknown) {
-      const msg = err instanceof Error ? err.message : 'Registration failed';
-      toast.error(msg.replace('Firebase: ', '').replace(/\(.*\)/, '').trim());
+      router.push('/dashboard');
+    } catch (err) {
+      toast.error(friendlyAuthError(err));
     } finally {
       setLoading(false);
     }
@@ -94,14 +94,18 @@ export default function RegisterPage() {
                 <p className="text-orange-100 text-sm">Be part of the food seva movement</p>
               </div>
             </div>
-            {/* Steps */}
+            {/* Step indicators */}
             <div className="flex items-center gap-2 mt-5">
               {[1, 2].map(s => (
                 <div key={s} className="flex items-center gap-2">
-                  <div className={`w-8 h-8 rounded-full flex items-center justify-center text-sm font-bold transition-all ${step >= s ? 'bg-white text-orange-500' : 'bg-orange-400 text-white'}`}>
-                    {s}
+                  <div className={`w-8 h-8 rounded-full flex items-center justify-center text-sm font-bold transition-all ${
+                    step > s ? 'bg-white text-green-600' :
+                    step === s ? 'bg-white text-orange-500' :
+                    'bg-orange-400 text-white'
+                  }`}>
+                    {step > s ? '✓' : s}
                   </div>
-                  {s < 2 && <div className={`flex-1 h-1 w-12 rounded ${step >= 2 ? 'bg-white' : 'bg-orange-400'}`} />}
+                  {s < 2 && <div className={`h-1 w-12 rounded transition-all ${step > s ? 'bg-white' : 'bg-orange-400'}`} />}
                 </div>
               ))}
               <span className="text-xs text-orange-100 ml-2">
@@ -112,6 +116,7 @@ export default function RegisterPage() {
 
           <div className="px-8 py-7">
             <AnimatePresence mode="wait">
+              {/* Step 1 — Role selection */}
               {step === 1 && (
                 <motion.div
                   key="step1"
@@ -126,7 +131,9 @@ export default function RegisterPage() {
                       <button
                         key={r.value}
                         onClick={() => setRole(r.value)}
-                        className={`w-full flex items-center gap-4 p-4 rounded-2xl border-2 transition-all text-left ${role === r.value ? 'border-orange-400 bg-orange-50' : 'border-stone-200 hover:border-orange-200 hover:bg-stone-50'}`}
+                        className={`w-full flex items-center gap-4 p-4 rounded-2xl border-2 transition-all text-left ${
+                          role === r.value ? 'border-orange-400 bg-orange-50' : 'border-stone-200 hover:border-orange-200 hover:bg-stone-50'
+                        }`}
                       >
                         <div className={`w-12 h-12 rounded-xl bg-gradient-to-br ${r.color} flex items-center justify-center text-2xl shadow-md flex-shrink-0`}>
                           {r.emoji}
@@ -135,7 +142,9 @@ export default function RegisterPage() {
                           <div className="font-semibold text-stone-800">{r.label}</div>
                           <div className="text-xs text-stone-500 mt-0.5">{r.desc}</div>
                         </div>
-                        <div className={`w-5 h-5 rounded-full border-2 flex items-center justify-center transition-all ${role === r.value ? 'border-orange-500 bg-orange-500' : 'border-stone-300'}`}>
+                        <div className={`w-5 h-5 rounded-full border-2 flex items-center justify-center flex-shrink-0 transition-all ${
+                          role === r.value ? 'border-orange-500 bg-orange-500' : 'border-stone-300'
+                        }`}>
                           {role === r.value && <div className="w-2 h-2 rounded-full bg-white" />}
                         </div>
                       </button>
@@ -154,6 +163,7 @@ export default function RegisterPage() {
                 </motion.div>
               )}
 
+              {/* Step 2 — Account details */}
               {step === 2 && (
                 <motion.div
                   key="step2"
@@ -163,11 +173,15 @@ export default function RegisterPage() {
                 >
                   <h2 className="text-lg font-bold text-stone-800 mb-1">Create your account</h2>
                   <p className="text-sm text-stone-500 mb-5">
-                    Registering as <span className="font-semibold text-orange-600">{ROLES.find(r => r.value === role)?.label}</span>
+                    Registering as{' '}
+                    <span className="font-semibold text-orange-600">
+                      {ROLES.find(r => r.value === role)?.emoji} {ROLES.find(r => r.value === role)?.label}
+                    </span>
                   </p>
 
                   <form onSubmit={handleSubmit} className="space-y-4">
                     <div className="grid grid-cols-2 gap-3">
+                      {/* Full name */}
                       <div className="col-span-2">
                         <label className="block text-xs font-medium text-stone-600 mb-1">Full Name *</label>
                         <div className="relative">
@@ -177,12 +191,14 @@ export default function RegisterPage() {
                             value={form.name}
                             onChange={e => update('name', e.target.value)}
                             required
+                            autoComplete="name"
                             placeholder="Your full name"
                             className="w-full pl-9 pr-3 py-2.5 border-2 border-stone-200 rounded-xl focus:border-orange-400 focus:outline-none text-sm transition-colors"
                           />
                         </div>
                       </div>
 
+                      {/* Email */}
                       <div className="col-span-2">
                         <label className="block text-xs font-medium text-stone-600 mb-1">Email *</label>
                         <div className="relative">
@@ -192,12 +208,14 @@ export default function RegisterPage() {
                             value={form.email}
                             onChange={e => update('email', e.target.value)}
                             required
+                            autoComplete="email"
                             placeholder="your@email.com"
                             className="w-full pl-9 pr-3 py-2.5 border-2 border-stone-200 rounded-xl focus:border-orange-400 focus:outline-none text-sm transition-colors"
                           />
                         </div>
                       </div>
 
+                      {/* Password */}
                       <div className="col-span-2">
                         <label className="block text-xs font-medium text-stone-600 mb-1">Password *</label>
                         <div className="relative">
@@ -208,6 +226,7 @@ export default function RegisterPage() {
                             onChange={e => update('password', e.target.value)}
                             required
                             minLength={6}
+                            autoComplete="new-password"
                             placeholder="At least 6 characters"
                             className="w-full pl-9 pr-10 py-2.5 border-2 border-stone-200 rounded-xl focus:border-orange-400 focus:outline-none text-sm transition-colors"
                           />
@@ -217,6 +236,7 @@ export default function RegisterPage() {
                         </div>
                       </div>
 
+                      {/* Phone */}
                       <div>
                         <label className="block text-xs font-medium text-stone-600 mb-1">Phone</label>
                         <div className="relative">
@@ -225,14 +245,16 @@ export default function RegisterPage() {
                             type="tel"
                             value={form.phone}
                             onChange={e => update('phone', e.target.value)}
+                            autoComplete="tel"
                             placeholder="+91 9999..."
                             className="w-full pl-9 pr-3 py-2.5 border-2 border-stone-200 rounded-xl focus:border-orange-400 focus:outline-none text-sm transition-colors"
                           />
                         </div>
                       </div>
 
+                      {/* City */}
                       <div>
-                        <label className="block text-xs font-medium text-stone-600 mb-1">City (Maharashtra)</label>
+                        <label className="block text-xs font-medium text-stone-600 mb-1">City</label>
                         <select
                           value={form.city}
                           onChange={e => update('city', e.target.value)}
@@ -245,6 +267,7 @@ export default function RegisterPage() {
                         </select>
                       </div>
 
+                      {/* Org name (donor / NGO only) */}
                       {(role === 'ngo' || role === 'donor') && (
                         <div className="col-span-2">
                           <label className="block text-xs font-medium text-stone-600 mb-1">
@@ -257,7 +280,7 @@ export default function RegisterPage() {
                               value={form.orgName}
                               onChange={e => update('orgName', e.target.value)}
                               required={role === 'ngo'}
-                              placeholder={role === 'ngo' ? 'Your NGO name' : 'Ganesh Mandal, Temple, etc.'}
+                              placeholder={role === 'ngo' ? 'Your NGO / organization name' : 'Ganesh Mandal, Temple name, etc.'}
                               className="w-full pl-9 pr-3 py-2.5 border-2 border-stone-200 rounded-xl focus:border-orange-400 focus:outline-none text-sm transition-colors"
                             />
                           </div>
@@ -271,7 +294,7 @@ export default function RegisterPage() {
                         onClick={() => setStep(1)}
                         className="px-4 py-3 rounded-2xl border-2 border-stone-200 text-stone-600 text-sm font-medium hover:bg-stone-50 transition-all"
                       >
-                        Back
+                        ← Back
                       </button>
                       <button
                         type="submit"
@@ -279,7 +302,7 @@ export default function RegisterPage() {
                         className="flex-1 py-3 bg-gradient-to-r from-orange-500 to-red-500 text-white font-semibold rounded-2xl flex items-center justify-center gap-2 hover:shadow-lg hover:scale-[1.02] active:scale-[0.98] transition-all disabled:opacity-70"
                       >
                         {loading ? <Loader2 size={18} className="animate-spin" /> : '🙏'}
-                        {loading ? 'Creating...' : 'Create Account'}
+                        {loading ? 'Creating account...' : 'Create Account'}
                       </button>
                     </div>
                   </form>

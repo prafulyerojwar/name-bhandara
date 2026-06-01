@@ -4,7 +4,7 @@ import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { motion } from 'framer-motion';
 import { Mail, Lock, Eye, EyeOff, Loader2 } from 'lucide-react';
-import { loginUser, signInWithGoogle } from '@/lib/auth';
+import { loginUser, signInWithGoogle, friendlyAuthError } from '@/lib/auth';
 import toast from 'react-hot-toast';
 
 export default function LoginPage() {
@@ -20,10 +20,9 @@ export default function LoginPage() {
     try {
       await loginUser(email, password);
       toast.success('Welcome back! 🙏');
-      router.push('/');
-    } catch (err: unknown) {
-      const msg = err instanceof Error ? err.message : 'Login failed';
-      toast.error(msg.replace('Firebase: ', '').replace(/\(.*\)/, '').trim());
+      router.push('/dashboard');
+    } catch (err) {
+      toast.error(friendlyAuthError(err));
     } finally {
       setLoading(false);
     }
@@ -34,9 +33,9 @@ export default function LoginPage() {
     try {
       await signInWithGoogle();
       toast.success('Welcome! 🙏');
-      router.push('/');
-    } catch {
-      toast.error('Google sign-in failed');
+      router.push('/dashboard');
+    } catch (err) {
+      toast.error(friendlyAuthError(err));
     } finally {
       setLoading(false);
     }
@@ -44,7 +43,7 @@ export default function LoginPage() {
 
   return (
     <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-orange-50 via-amber-50 to-red-50 mandala-bg px-4">
-      {/* Floating elements */}
+      {/* Floating decorations */}
       <div className="fixed inset-0 pointer-events-none overflow-hidden">
         <span className="absolute top-20 left-10 text-4xl animate-float opacity-20">🐘</span>
         <span className="absolute top-40 right-20 text-3xl animate-float-delay opacity-20">🪔</span>
@@ -67,11 +66,11 @@ export default function LoginPage() {
           </div>
 
           <div className="px-8 py-8 space-y-5">
-            {/* Google button */}
+            {/* Google */}
             <button
               onClick={handleGoogle}
               disabled={loading}
-              className="w-full flex items-center justify-center gap-3 py-3 border-2 border-stone-200 rounded-2xl hover:bg-stone-50 transition-all font-medium text-stone-700 hover:border-orange-300"
+              className="w-full flex items-center justify-center gap-3 py-3 border-2 border-stone-200 rounded-2xl hover:bg-stone-50 transition-all font-medium text-stone-700 hover:border-orange-300 disabled:opacity-60"
             >
               <svg className="w-5 h-5" viewBox="0 0 24 24">
                 <path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"/>
@@ -98,6 +97,7 @@ export default function LoginPage() {
                     value={email}
                     onChange={e => setEmail(e.target.value)}
                     required
+                    autoComplete="email"
                     placeholder="your@email.com"
                     className="w-full pl-10 pr-4 py-3 border-2 border-stone-200 rounded-2xl focus:border-orange-400 focus:outline-none transition-colors text-sm"
                   />
@@ -113,6 +113,7 @@ export default function LoginPage() {
                     value={password}
                     onChange={e => setPassword(e.target.value)}
                     required
+                    autoComplete="current-password"
                     placeholder="••••••••"
                     className="w-full pl-10 pr-12 py-3 border-2 border-stone-200 rounded-2xl focus:border-orange-400 focus:outline-none transition-colors text-sm"
                   />

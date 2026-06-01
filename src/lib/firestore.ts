@@ -3,44 +3,39 @@ import {
   doc,
   getDoc,
   getDocs,
+  setDoc,
   addDoc,
   updateDoc,
-  deleteDoc,
   query,
   where,
   orderBy,
   limit,
   onSnapshot,
-  serverTimestamp,
-  Timestamp,
 } from 'firebase/firestore';
 import { db } from './firebase';
 import { Bhandara, UserProfile, Booking } from '@/types';
 
-// Users
+// ── Users ────────────────────────────────────────────────────────────────────
+
 export async function getUserProfile(uid: string): Promise<UserProfile | null> {
-  const ref = doc(db, 'users', uid);
-  const snap = await getDoc(ref);
+  const snap = await getDoc(doc(db, 'users', uid));
   return snap.exists() ? (snap.data() as UserProfile) : null;
 }
 
 export async function createUserProfile(profile: UserProfile): Promise<void> {
-  const { setDoc } = await import('firebase/firestore');
-  const ref = doc(db, 'users', profile.uid);
-  await setDoc(ref, profile as unknown as Record<string, unknown>, { merge: true });
+  // setDoc with merge:true acts as upsert — safe to call even if the doc exists
+  await setDoc(doc(db, 'users', profile.uid), { ...profile }, { merge: true });
 }
 
 export async function updateUserProfile(uid: string, data: Partial<UserProfile>): Promise<void> {
   await updateDoc(doc(db, 'users', uid), data as Record<string, unknown>);
 }
 
-// Bhandaras
+// ── Bhandaras ────────────────────────────────────────────────────────────────
+
 export async function createBhandara(data: Omit<Bhandara, 'id'>): Promise<string> {
-  const ref = await addDoc(collection(db, 'bhandaras'), {
-    ...data,
-    createdAt: Date.now(),
-    updatedAt: Date.now(),
-  });
+  const ref = await addDoc(collection(db, 'bhandaras'), data);
+  // Write the auto-generated id back into the document
   await updateDoc(ref, { id: ref.id });
   return ref.id;
 }
@@ -58,76 +53,40 @@ export async function updateBhandara(id: string, data: Partial<Bhandara>): Promi
 }
 
 export async function getPublicBhandaras(city?: string): Promise<Bhandara[]> {
-  let q = query(
-    collection(db, 'bhandaras'),
-    where('isPublic', '==', true),
-    where('status', '==', 'available'),
-    orderBy('createdAt', 'desc'),
-    limit(50)
-  );
-  if (city) {
-    q = query(
-      collection(db, 'bhandaras'),
-      where('isPublic', '==', true),
-      where('status', '==', 'available'),
-      where('city', '==', city),
-      orderBy('createdAt', 'desc'),
-      limit(50)
-    );
-  }
-  const snap = await getDocs(q);
+  const constraints = city
+    ? [where('isPublic', '==', true), where('status', '==', 'available'), where('city', '==', city), orderBy('createdAt', 'desc'), limit(50)]
+    : [where('isPublic', '==', true), where('status', '==', 'available'), orderBy('createdAt', 'desc'), limit(50)];
+  const snap = await getDocs(query(collection(db, 'bhandaras'), ...constraints));
   return snap.docs.map((d) => ({ id: d.id, ...d.data() } as Bhandara));
 }
 
 export async function getPrivateBhandaras(city?: string): Promise<Bhandara[]> {
-  let q = query(
-    collection(db, 'bhandaras'),
-    where('isPublic', '==', false),
-    where('status', 'in', ['available', 'booked']),
-    orderBy('createdAt', 'desc'),
-    limit(50)
-  );
-  if (city) {
-    q = query(
-      collection(db, 'bhandaras'),
-      where('isPublic', '==', false),
-      where('status', 'in', ['available', 'booked']),
-      where('city', '==', city),
-      orderBy('createdAt', 'desc'),
-      limit(50)
-    );
-  }
-  const snap = await getDocs(q);
+  const constraints = city
+    ? [where('isPublic', '==', false), where('status', 'in', ['available', 'booked']), where('city', '==', city), orderBy('createdAt', 'desc'), limit(50)]
+    : [where('isPublic', '==', false), where('status', 'in', ['available', 'booked']), orderBy('createdAt', 'desc'), limit(50)];
+  const snap = await getDocs(query(collection(db, 'bhandaras'), ...constraints));
   return snap.docs.map((d) => ({ id: d.id, ...d.data() } as Bhandara));
 }
 
 export async function getDonorBhandaras(donorId: string): Promise<Bhandara[]> {
-  const q = query(
-    collection(db, 'bhandaras'),
-    where('donorId', '==', donorId),
-    orderBy('createdAt', 'desc')
+  const snap = await getDocs(
+    query(collection(db, 'bhandaras'), where('donorId', '==', donorId), orderBy('createdAt', 'desc'))
   );
-  const snap = await getDocs(q);
   return snap.docs.map((d) => ({ id: d.id, ...d.data() } as Bhandara));
 }
 
-// Bookings
+// ── Bookings ─────────────────────────────────────────────────────────────────
+
 export async function createBooking(data: Omit<Booking, 'id'>): Promise<string> {
-  const ref = await addDoc(collection(db, 'bookings'), {
-    ...data,
-    createdAt: Date.now(),
-  });
+  const ref = await addDoc(collection(db, 'bookings'), data);
   await updateDoc(ref, { id: ref.id });
   return ref.id;
 }
 
 export async function getBookingsByNgo(ngoId: string): Promise<Booking[]> {
-  const q = query(
-    collection(db, 'bookings'),
-    where('ngoId', '==', ngoId),
-    orderBy('createdAt', 'desc')
+  const snap = await getDocs(
+    query(collection(db, 'bookings'), where('ngoId', '==', ngoId), orderBy('createdAt', 'desc'))
   );
-  const snap = await getDocs(q);
   return snap.docs.map((d) => ({ id: d.id, ...d.data() } as Booking));
 }
 
@@ -140,13 +99,14 @@ export function subscribeToBhandaras(
   isPublic: boolean,
   callback: (bhandaras: Bhandara[]) => void
 ) {
-  const conditions = [
+  const constraints = [
     where('isPublic', '==', isPublic),
     where('status', '==', 'available'),
+    ...(city ? [where('city', '==', city)] : []),
+    orderBy('createdAt', 'desc'),
+    limit(100),
   ];
-  if (city) conditions.push(where('city', '==', city));
-
-  const q = query(collection(db, 'bhandaras'), ...conditions, orderBy('createdAt', 'desc'), limit(100));
+  const q = query(collection(db, 'bhandaras'), ...constraints);
   return onSnapshot(q, (snap) => {
     callback(snap.docs.map((d) => ({ id: d.id, ...d.data() } as Bhandara)));
   });
